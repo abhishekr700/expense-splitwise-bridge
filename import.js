@@ -7,7 +7,8 @@ dotenv.config()
 const APIKEY = process.env.SPLITWISE_API_KEY; // Bearer auth
 const USERID = 23804942
 const GROUPIDS = {
-    AG01V3Group: "56584765"
+    AG01V3Group: "56584765",
+    Printing3DGroup: "62299357"
 }
 
 const HOST = process.env.HOST
@@ -77,6 +78,11 @@ const processExpensesForBudgetApp = async (expenses) => {
     return processedExpense
 }
 
+/*
+ * For a given list of expenses, check if it exists in the DB already, otherwise
+ * insert it.
+ */
+
 const sendExpenseEntries = async (expenses) => {
     for (let expense of expenses) {
         console.log("Checking expense's splitwise id:", expense.splitwiseExpenseId);
@@ -103,26 +109,35 @@ const sendExpenseEntries = async (expenses) => {
                     expense
                 )
             });
-            console.log(rawResponse);
+            // console.debug(rawResponse);
             const content = await rawResponse.json();
-            console.log(content);
+            // console.debug(content);
+            console.log(`Expense inserted: ${content.createRes2.id}`);
         } catch (e) {
             console.log("Insert expense error.", e);
         }
     }
 }
 
-const run = async () => {
-    // const userData = await getUser()
-    // console.log(userData);
-    // const groups = await getGroups();
-    // console.log(groups);
-    const { expenses } = await getExpenseForGroup(GROUPIDS.AG01V3Group)
-    // const expenses = expenseResp.expenses
+const process3dPrintingExpenses = async () => {
+    console.log("Processing expenses for 3D Printing Group");
+    const { expenses } = await getExpenseForGroup(GROUPIDS.Printing3DGroup)
     console.log("Expenses to process:", expenses.length);
     const processedExpense = await processExpensesForBudgetApp(expenses)
     console.log(processedExpense);
     await sendExpenseEntries(processedExpense)
+}
+
+const run = async () => {
+    // Process expenses for AG01 home group
+    const { expenses } = await getExpenseForGroup(GROUPIDS.AG01V3Group)
+    console.log("Expenses to process:", expenses.length);
+    const processedExpense = await processExpensesForBudgetApp(expenses)
+    console.log(processedExpense);
+    await sendExpenseEntries(processedExpense)
+
+    // Process expenses for the 3D Printing Group
+    await process3dPrintingExpenses()
 
 };
 
