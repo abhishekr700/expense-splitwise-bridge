@@ -129,6 +129,7 @@ const process3dPrintingExpenses = async () => {
 }
 
 const run = async () => {
+    console.log(`Expense Server: ${EXPENSE_SERVER}`);
     // Process expenses for AG01 home group
     const { expenses } = await getExpenseForGroup(GROUPIDS.AG01V3Group)
     console.log("Expenses to process:", expenses.length);
