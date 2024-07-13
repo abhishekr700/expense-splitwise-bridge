@@ -8,7 +8,8 @@ const APIKEY = process.env.SPLITWISE_API_KEY; // Bearer auth
 const USERID = 23804942
 const GROUPIDS = {
     AG01V3Group: "56584765",
-    Printing3DGroup: "62299357"
+    Printing3DGroup: "62299357",
+    PragiBachelorette: "66554786"
 }
 
 const HOST = process.env.HOST
@@ -119,6 +120,21 @@ const sendExpenseEntries = async (expenses) => {
     }
 }
 
+/**
+ * Queries splitwise for expenses on a particular group
+ * and adds expenses for that group to expense mgmt system
+ * @param {*} groupId splitwise id of the group
+ * @param {*} groupName optional group name for logs
+ */
+const processGroupExpenses = async (groupId, groupName) => {
+    console.log(`Processing expenses for ${groupName} Group`);
+    const { expenses } = await getExpenseForGroup(groupId)
+    console.log("Expenses to process:", expenses.length);
+    const processedExpense = await processExpensesForBudgetApp(expenses)
+    console.log(processedExpense);
+    await sendExpenseEntries(processedExpense)
+}
+
 const process3dPrintingExpenses = async () => {
     console.log("Processing expenses for 3D Printing Group");
     const { expenses } = await getExpenseForGroup(GROUPIDS.Printing3DGroup)
@@ -131,14 +147,19 @@ const process3dPrintingExpenses = async () => {
 const run = async () => {
     console.log(`Expense Server: ${EXPENSE_SERVER}`);
     // Process expenses for AG01 home group
-    const { expenses } = await getExpenseForGroup(GROUPIDS.AG01V3Group)
-    console.log("Expenses to process:", expenses.length);
-    const processedExpense = await processExpensesForBudgetApp(expenses)
-    console.log(processedExpense);
-    await sendExpenseEntries(processedExpense)
+    // const { expenses } = await getExpenseForGroup(GROUPIDS.AG01V3Group)
+    // console.log("Expenses to process:", expenses.length);
+    // const processedExpense = await processExpensesForBudgetApp(expenses)
+    // console.log(processedExpense);
+    // await sendExpenseEntries(processedExpense)
 
     // Process expenses for the 3D Printing Group
-    await process3dPrintingExpenses()
+    await processGroupExpenses(GROUPIDS.AG01V3Group, "AG01 V3")
+
+    // Process expenses for the 3D Printing Group
+    await processGroupExpenses(GROUPIDS.Printing3DGroup, "3D Printing")
+
+    await processGroupExpenses(GROUPIDS.PragiBachelorette, "Pragi Bachelorette")
 
 };
 
