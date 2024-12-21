@@ -15,6 +15,7 @@ const GROUPIDS = {
 const HOST = process.env.HOST
 const PORT = process.env.PORT
 const EXPENSE_SERVER = `http://${HOST}:${PORT}`
+const UPTIME_KUMA_URL = process.env.UPTIME_KUMA_URL
 
 const callApi = async (endpoint, body) => {
     let resp = await fetch(`https://secure.splitwise.com/api/v3.0/${endpoint}?` + new URLSearchParams(body), {
@@ -160,6 +161,12 @@ const run = async () => {
     await processGroupExpenses(GROUPIDS.Printing3DGroup, "3D Printing")
 
     await processGroupExpenses(GROUPIDS.PragiBachelorette, "Pragi Bachelorette")
+
+    // If everything went well, ping uptime kuma to report job ran successfully.
+    let resp = await fetch(UPTIME_KUMA_URL)
+    resp = await resp.json();
+    console.log(resp);
+
 
 };
 
