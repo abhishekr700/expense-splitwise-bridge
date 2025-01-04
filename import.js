@@ -16,6 +16,7 @@ const HOST = process.env.HOST
 const PORT = process.env.PORT
 const EXPENSE_SERVER = `http://${HOST}:${PORT}`
 const UPTIME_KUMA_URL = process.env.UPTIME_KUMA_URL
+const READ_ONLY = !true
 
 const callApi = async (endpoint, body) => {
     let resp = await fetch(`https://secure.splitwise.com/api/v3.0/${endpoint}?` + new URLSearchParams(body), {
@@ -40,6 +41,7 @@ const getExpense = async () => {
 
 const getExpenseForGroup = async (groupId) => {
     const resp = await callApi("get_expenses", { group_id: groupId, limit: 100 })
+    // console.debug(resp)
     return resp
 }
 
@@ -74,6 +76,13 @@ const processExpensesForBudgetApp = async (expenses) => {
     for (let expense of expenses) {
         const pexp = await procesSingleExpenseForBudgetApp(expense)
         if (pexp.amount === 0) continue
+        // This is not really a expense but more of a additional entry in splitwise
+        // that is created when payments are made across multiple groups. Therefore
+        // this should not be added to expenses.
+        if (pexp.name === "Settle all balances") {
+            console.log("Skipping 'Settle all balances' entry");
+            continue;
+        }
         processedExpense.push(pexp)
     }
 
@@ -100,6 +109,10 @@ const sendExpenseEntries = async (expenses) => {
         }
 
         console.log("Inserting expense:", expense);
+        if (READ_ONLY) {
+            console.log("Running in read-nly mode, not inserting expense to DB");
+            continue;
+        }
         try {
             const rawResponse = await fetch(`${EXPENSE_SERVER}/expenseEntry`, {
                 method: 'POST',
