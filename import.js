@@ -15,6 +15,7 @@ const GROUPIDS = {
 const HOST = process.env.HOST
 const PORT = process.env.PORT
 const EXPENSE_SERVER = `http://${HOST}:${PORT}`
+const CATEGORY_PREDICTION_SERVER_URL = process.env.CATEGORY_PREDICTION_SERVER_URL
 const UPTIME_KUMA_URL = process.env.UPTIME_KUMA_URL
 const READ_ONLY = !true
 
@@ -46,16 +47,17 @@ const getExpenseForGroup = async (groupId) => {
 }
 
 // Processes a single expense from the Splitwise API
-const procesSingleExpenseForBudgetApp = async (expense) => {
+const procesSingleExpenseForBudgetApp = async (expense, tags) => {
     // Get category prediction
-    let resp = await fetch(`http://${HOST}:3001/get_expense?expenseName=${expense.description}`)
+    let resp = await fetch(`${CATEGORY_PREDICTION_SERVER_URL}/get_expense?expenseName=${expense.description}`)
     resp = await resp.json()
     const processedExpense = {
         name: expense.description,
         amount: 0,
         date: moment(expense.date).format("YYYY-MM-DD"),
         splitwiseExpenseId: expense.id,
-        typeId: resp.categoryId
+        typeId: resp.categoryId,
+        tags: tags
     }
     console.log({ expense: expense.description, categoryId: resp.categoryId })
     // console.log(expense.category);
@@ -71,10 +73,10 @@ const procesSingleExpenseForBudgetApp = async (expense) => {
 }
 
 // Processes and returns a list of expenses from Splitwise API
-const processExpensesForBudgetApp = async (expenses) => {
+const processExpensesForBudgetApp = async (expenses, tags) => {
     const processedExpense = []
     for (let expense of expenses) {
-        const pexp = await procesSingleExpenseForBudgetApp(expense)
+        const pexp = await procesSingleExpenseForBudgetApp(expense, tags)
         if (pexp.amount === 0) continue
         // This is not really a expense but more of a additional entry in splitwise
         // that is created when payments are made across multiple groups. Therefore
@@ -144,7 +146,8 @@ const processGroupExpenses = async (groupId, groupName) => {
     console.log(`Processing expenses for ${groupName} Group`);
     const { expenses } = await getExpenseForGroup(groupId)
     console.log("Expenses to process:", expenses.length);
-    const processedExpense = await processExpensesForBudgetApp(expenses)
+    const formattedGroupName = "splitwise-" + groupName.replace(/ /g, "-");
+    const processedExpense = await processExpensesForBudgetApp(expenses, [formattedGroupName])
     console.log(processedExpense);
     await sendExpenseEntries(processedExpense)
 }
@@ -153,7 +156,7 @@ const process3dPrintingExpenses = async () => {
     console.log("Processing expenses for 3D Printing Group");
     const { expenses } = await getExpenseForGroup(GROUPIDS.Printing3DGroup)
     console.log("Expenses to process:", expenses.length);
-    const processedExpense = await processExpensesForBudgetApp(expenses)
+    const processedExpense = await processExpensesForBudgetApp(expenses, ["splitwise-3D-Printing"])
     console.log(processedExpense);
     await sendExpenseEntries(processedExpense)
 }
