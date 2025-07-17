@@ -15,6 +15,7 @@ const EXPENSE_SERVER = `http://${HOST}:${PORT}`
 const CATEGORY_PREDICTION_SERVER_URL = process.env.CATEGORY_PREDICTION_SERVER_URL
 const UPTIME_KUMA_URL = process.env.UPTIME_KUMA_URL
 const READ_ONLY = !true
+const SPLITWISE_EXPENSE_FETCH_LIMIT = parseInt(process.env.SPLITWISE_EXPENSE_FETCH_LIMIT || '100', 10)
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true'
 
 const callApi = async (endpoint, body) => {
@@ -150,7 +151,7 @@ const sendExpenseEntries = async (expenses) => {
 
 
 const getAllExpenses = async () => {
-    const resp = await callApi("get_expenses", { limit: 40 })
+    const resp = await callApi("get_expenses", { limit: SPLITWISE_EXPENSE_FETCH_LIMIT })
     // console.debug(resp)
     return resp
 }
