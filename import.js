@@ -172,7 +172,7 @@ const run = async () => {
         if (expense.group_id) {
             const groupName = groupIdToName[expense.group_id];
             if (groupName) {
-                tags.push("splitwise-" + groupName.replace(/ /g, "-"));
+                tags.push("splitwise-" + groupName.trim().replace(/ /g, "-"));
             } else {
                 console.warn(`Group name not found for group_id: ${expense.group_id}`);
                 tags.push("splitwise-unknown-group");
