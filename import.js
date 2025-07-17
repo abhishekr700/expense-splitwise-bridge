@@ -2,15 +2,12 @@ import fetch from "node-fetch";
 import moment from "moment";
 import dotenv from "dotenv"
 
-dotenv.config()
+dotenv.config({ override: true })
 
 const APIKEY = process.env.SPLITWISE_API_KEY; // Bearer auth
 const USERID = 23804942
-const GROUPIDS = {
-    AG01V3Group: "56584765",
-    Printing3DGroup: "62299357",
-    PragiBachelorette: "66554786"
-}
+let groupIdToName = {};
+let groupNameToId = {};
 
 const HOST = process.env.HOST
 const PORT = process.env.PORT
@@ -18,6 +15,7 @@ const EXPENSE_SERVER = `http://${HOST}:${PORT}`
 const CATEGORY_PREDICTION_SERVER_URL = process.env.CATEGORY_PREDICTION_SERVER_URL
 const UPTIME_KUMA_URL = process.env.UPTIME_KUMA_URL
 const READ_ONLY = !true
+const DEBUG_MODE = process.env.DEBUG_MODE === 'true'
 
 const callApi = async (endpoint, body) => {
     let resp = await fetch(`https://secure.splitwise.com/api/v3.0/${endpoint}?` + new URLSearchParams(body), {
@@ -29,7 +27,18 @@ const callApi = async (endpoint, body) => {
 }
 
 const getGroups = async () => {
-    return await callApi("get_groups")
+    const { groups } = await callApi("get_groups")
+    return groups
+}
+
+const populateGroupMappings = async () => {
+    const groups = await getGroups();
+    for (const group of groups) {
+        groupIdToName[group.id] = group.name;
+        groupNameToId[group.name] = group.id;
+    }
+    console.log("Group ID to Name Mapping:", groupIdToName);
+    console.log("Group Name to ID Mapping:", groupNameToId);
 }
 
 const getUser = async () => {
@@ -64,7 +73,7 @@ const procesSingleExpenseForBudgetApp = async (expense, tags) => {
 
     for (let user of expense.users) {
         if (user.user_id === USERID) {
-            processedExpense.amount = user.owed_share
+            processedExpense.amount = parseFloat(user.owed_share)
         }
     }
 
@@ -136,47 +145,52 @@ const sendExpenseEntries = async (expenses) => {
     }
 }
 
-/**
- * Queries splitwise for expenses on a particular group
- * and adds expenses for that group to expense mgmt system
- * @param {*} groupId splitwise id of the group
- * @param {*} groupName optional group name for logs
- */
-const processGroupExpenses = async (groupId, groupName) => {
-    console.log(`Processing expenses for ${groupName} Group`);
-    const { expenses } = await getExpenseForGroup(groupId)
-    console.log("Expenses to process:", expenses.length);
-    const formattedGroupName = "splitwise-" + groupName.replace(/ /g, "-");
-    const processedExpense = await processExpensesForBudgetApp(expenses, [formattedGroupName])
-    console.log(processedExpense);
-    await sendExpenseEntries(processedExpense)
-}
 
-const process3dPrintingExpenses = async () => {
-    console.log("Processing expenses for 3D Printing Group");
-    const { expenses } = await getExpenseForGroup(GROUPIDS.Printing3DGroup)
-    console.log("Expenses to process:", expenses.length);
-    const processedExpense = await processExpensesForBudgetApp(expenses, ["splitwise-3D-Printing"])
-    console.log(processedExpense);
-    await sendExpenseEntries(processedExpense)
+
+
+
+const getAllExpenses = async () => {
+    const resp = await callApi("get_expenses", { limit: 40 })
+    // console.debug(resp)
+    return resp
 }
 
 const run = async () => {
     console.log(`Expense Server: ${EXPENSE_SERVER}`);
-    // Process expenses for AG01 home group
-    // const { expenses } = await getExpenseForGroup(GROUPIDS.AG01V3Group)
-    // console.log("Expenses to process:", expenses.length);
-    // const processedExpense = await processExpensesForBudgetApp(expenses)
-    // console.log(processedExpense);
-    // await sendExpenseEntries(processedExpense)
 
-    // Process expenses for the 3D Printing Group
-    await processGroupExpenses(GROUPIDS.AG01V3Group, "AG01 V3")
+    await populateGroupMappings();
 
-    // Process expenses for the 3D Printing Group
-    await processGroupExpenses(GROUPIDS.Printing3DGroup, "3D Printing")
+    const { expenses } = await getAllExpenses();
+    console.log("Total expenses to process:", expenses.length);
 
-    await processGroupExpenses(GROUPIDS.PragiBachelorette, "Pragi Bachelorette")
+    for (const expense of expenses) {
+        if (DEBUG_MODE) {
+            console.log("Received expense from API:", JSON.stringify(expense, null, 2));
+        }
+        let tags = [];
+        if (expense.group_id) {
+            const groupName = groupIdToName[expense.group_id];
+            if (groupName) {
+                tags.push("splitwise-" + groupName.replace(/ /g, "-"));
+            } else {
+                console.warn(`Group name not found for group_id: ${expense.group_id}`);
+                tags.push("splitwise-unknown-group");
+            }
+        } else {
+            tags.push("splitwise-non-group");
+        }
+
+        const processedExpense = await procesSingleExpenseForBudgetApp(expense, tags);
+        if (expense.payment) {
+            console.log(`Skipping expense '${expense.description}' (ID: ${expense.id}) as it is a payment entry.`);
+        } else if (processedExpense.amount === 0) {
+            console.log(`Skipping expense '${processedExpense.name}' (ID: ${processedExpense.splitwiseExpenseId}) due to zero amount.`);
+        } else if (processedExpense.name === "Settle all balances") {
+            console.log(`Skipping expense '${processedExpense.name}' (ID: ${processedExpense.splitwiseExpenseId}) as it is a settlement entry.`);
+        } else {
+            await sendExpenseEntries([processedExpense]);
+        }
+    }
 
     // If everything went well, ping uptime kuma to report job ran successfully.
     let resp = await fetch(UPTIME_KUMA_URL)
