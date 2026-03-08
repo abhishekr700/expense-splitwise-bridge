@@ -1,6 +1,7 @@
 import fetch from "node-fetch";
 import moment from "moment";
 import dotenv from "dotenv"
+import cron from "node-cron";
 
 dotenv.config({ override: true })
 
@@ -201,5 +202,29 @@ const run = async () => {
 
 };
 
+const CRON_SCHEDULE = process.env.CRON_SCHEDULE || "0 */2 * * *";
 
-run();
+console.log(`Starting with cron schedule: ${CRON_SCHEDULE}`);
+console.log("Running immediately on startup...");
+run().then(() => {
+    console.log("Initial run complete. Scheduling future runs...");
+}).catch((err) => {
+    console.error("Initial run failed:", err);
+});
+
+const task = cron.schedule(CRON_SCHEDULE, () => {
+    console.log(`\n--- Cron triggered at ${new Date().toISOString()} ---`);
+    run().catch((err) => {
+        console.error("Scheduled run failed:", err);
+    });
+});
+
+// Graceful shutdown
+const shutdown = () => {
+    console.log("\nShutting down...");
+    task.stop();
+    process.exit(0);
+};
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

@@ -1,0 +1,14 @@
+services:
+  splitwise-importer:
+    container_name: splitwise-importer
+    build: .
+    restart: unless-stopped
+    environment:
+      - SPLITWISE_API_KEY=${SPLITWISE_API_KEY}
+      - HOST=${HOST}
+      - PORT=${PORT}
+      - UPTIME_KUMA_URL=${UPTIME_KUMA_URL}
+      - CATEGORY_PREDICTION_SERVER_URL=${CATEGORY_PREDICTION_SERVER_URL}
+      - SPLITWISE_EXPENSE_FETCH_LIMIT=${SPLITWISE_EXPENSE_FETCH_LIMIT}
+      - CRON_SCHEDULE=${CRON_SCHEDULE}
+      - DEBUG_MODE=${DEBUG_MODE}
