@@ -1,28 +1,13 @@
-import fetch from "node-fetch";
-import moment from "moment";
-import dotenv from "dotenv"
-import fs from "fs"
+import fs from "fs";
+import { getGroups } from "./import.js";
 
-dotenv.config()
+const run = async () => {
+    const groups = await getGroups();
+    fs.writeFileSync("groups.json", JSON.stringify(groups, null, 4));
+    console.log("Successfully wrote groups to groups.json");
+};
 
-const APIKEY = process.env.SPLITWISE_API_KEY; // Bearer auth
-const USERID = 23804942
-const GROUPIDS = {
-    AG01V3Group: "56584765"
-}
-
-const callApi = async (endpoint, body) => {
-    let resp = await fetch(`https://secure.splitwise.com/api/v3.0/${endpoint}?` + new URLSearchParams(body), {
-        headers: { Authorization: `Bearer ${APIKEY}` },
-    });
-    // console.log(resp);
-    resp = await resp.json();
-    return resp
-}
-
-const getGroups = async () => {
-    const groupsData = await callApi("get_groups")
-    fs.writeFileSync("groups.json", JSON.stringify(groupsData.groups, null, 4))
-}
-
-getGroups()
+run().catch((err) => {
+    console.error("dumpGroups failed:", err);
+    process.exit(1);
+});
