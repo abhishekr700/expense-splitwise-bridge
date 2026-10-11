@@ -5,6 +5,8 @@ services:
     restart: unless-stopped
     environment:
       - SPLITWISE_API_KEY=${SPLITWISE_API_KEY}
+      - SPLITWISE_SESSION_COOKIE=${SPLITWISE_SESSION_COOKIE}
+      - SPLITWISE_COOKIE_PATH=${SPLITWISE_COOKIE_PATH:-/app/data/cookies.txt}
       - HOST=${HOST}
       - PORT=${PORT}
       - UPTIME_KUMA_URL=${UPTIME_KUMA_URL}
@@ -12,3 +14,5 @@ services:
       - SPLITWISE_EXPENSE_FETCH_LIMIT=${SPLITWISE_EXPENSE_FETCH_LIMIT}
       - CRON_SCHEDULE=${CRON_SCHEDULE}
       - DEBUG_MODE=${DEBUG_MODE}
+    volumes:
+      - ./data:/app/data

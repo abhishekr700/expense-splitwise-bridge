@@ -10,10 +10,12 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Run as non-root
+# Prepare data directory with node user ownership for volume mounting
+RUN mkdir -p /app/data && chown -R node:node /app/data
+
 USER node
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY package.json import.js dumpGroups.js ./
+COPY --from=deps --chown=node:node /app/node_modules ./node_modules
+COPY --chown=node:node package.json import.js dumpGroups.js ./
 
 CMD ["node", "import.js"]
